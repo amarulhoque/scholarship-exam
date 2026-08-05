@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin sign in · Hossain Memorial Scholarship Exam</title>
+<meta name="robots" content="noindex">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Hind+Siliguri:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body class="min-h-screen grid md:grid-cols-2">
+
+<!-- Left: the ledger side, so the sign-in screen still belongs to the exam -->
+<aside class="hidden md:flex flex-col justify-between p-10 relative overflow-hidden"
+       style="background:var(--ink);color:#fff">
+  <div class="ruled absolute inset-0" style="opacity:.09" aria-hidden="true"></div>
+  <a href="index.html" class="relative flex items-center gap-3" style="text-decoration:none;color:inherit">
+    <div class="data" style="width:34px;height:34px;border-radius:6px;background:rgba(255,255,255,.12);display:grid;place-items:center;font-size:12px;font-weight:700">HM</div>
+    <div class="display" style="font-size:15px">Hossain Memorial</div>
+  </a>
+  <div class="relative">
+    <div class="eyebrow" style="color:rgba(255,255,255,.55)">Examination office</div>
+    <p class="display" style="font-size:32px;line-height:1.2;margin-top:.6rem;max-width:20ch">
+      Marks entered here become someone's record.
+    </p>
+    <p style="font-size:13.5px;color:rgba(255,255,255,.6);margin-top:1rem;max-width:38ch;line-height:1.7">
+      Every change is signed with your name and the time it was made. Sign out on shared computers.
+    </p>
+  </div>
+  <p class="eyebrow" style="color:rgba(255,255,255,.4)">Authorised staff only</p>
+</aside>
+
+<main class="flex items-center justify-center p-6">
+  <div class="w-full" style="max-width:380px">
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <div class="eyebrow">Administration</div>
+        <h1 class="display" style="font-size:26px;margin-top:.2rem">Sign in</h1>
+      </div>
+      <button id="theme-toggle" class="btn btn-ghost btn-sm" aria-label="Switch theme"><span data-theme-icon>☀</span></button>
+    </div>
+
+    <form id="login-form" novalidate>
+      <label class="field">
+        <span class="label">Email address</span>
+        <input class="input" type="email" name="email" autocomplete="username" required autofocus>
+        <span class="error-text" data-error-for="email"></span>
+      </label>
+
+      <label class="field">
+        <span class="label">Password</span>
+        <input class="input" type="password" name="password" autocomplete="current-password" required>
+        <span class="error-text" data-error-for="password"></span>
+      </label>
+
+      <div class="flex items-center justify-between mb-6" style="font-size:13px">
+        <label class="flex items-center gap-2" style="cursor:pointer">
+          <input type="checkbox" name="remember" checked style="accent-color:var(--seal)">
+          <span>Keep me signed in</span>
+        </label>
+        <button type="button" id="forgot" style="color:var(--seal);font-weight:500">Forgot password</button>
+      </div>
+
+      <button type="submit" id="submit" class="btn btn-primary" style="width:100%">Sign in</button>
+    </form>
+
+    <p style="font-size:12px;color:var(--text-mute);margin-top:1.5rem;line-height:1.6">
+      Accounts are created by a super admin. If you cannot sign in, ask the examination office
+      to check that your account is active.
+    </p>
+    <a href="index.html" style="display:inline-block;margin-top:1rem;font-size:12.5px;color:var(--text-mute)">← Back to the public site</a>
+  </div>
+</main>
+
+<script type="module">
+import { login, resetPassword, ready } from './services/authService.js';
+import { isConfigured } from './services/firebase.js';
+import { initTheme, toggleTheme, $, readForm, showErrors, ok, err, withBusy } from './assets/js/ui.js';
+import { isEmail, required } from './utils/helpers.js';
+
+initTheme();
+$('#theme-toggle').addEventListener('click', toggleTheme);
+
+const nextPage = new URLSearchParams(location.search).get('next') || 'dashboard.html';
+
+if (!isConfigured()) {
+  err('Firebase is not configured yet. Add your project keys in services/firebase.js.');
+} else {
+  /* Already signed in? Skip the form. */
+  const { user, profile } = await ready();
+  if (user && profile) location.replace(`admin/${nextPage}`);
+}
+
+const form = $('#login-form');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const data = readForm(form);
+  const errors = {};
+  if (!isEmail(data.email)) errors.email = 'Enter the email address on your admin account.';
+  if (!required(data.password)) errors.password = 'Enter your password.';
+  if (Object.keys(errors).length) return showErrors(form, errors);
+  showErrors(form, {});
+
+  await withBusy($('#submit'), 'Signing in…', async () => {
+    try {
+      await login(data.email, data.password, !!data.remember);
+      location.replace(`admin/${nextPage}`);
+    } catch (e) {
+      err(friendly(e));
+    }
+  });
+});
+
+$('#forgot').addEventListener('click', async () => {
+  const { email } = readForm(form);
+  if (!isEmail(email)) {
+    return showErrors(form, { email: 'Enter your email address first, then choose Forgot password.' });
+  }
+  try {
+    await resetPassword(email);
+    ok('Password reset link sent. Check your inbox.');
+  } catch (e) {
+    err(friendly(e));
+  }
+});
+
+/** Firebase error codes are not written for people. */
+function friendly(e) {
+  const map = {
+    'auth/invalid-credential': 'That email and password do not match an account.',
+    'auth/invalid-email': 'That email address is not valid.',
+    'auth/user-not-found': 'No admin account uses that email address.',
+    'auth/wrong-password': 'That password is incorrect.',
+    'auth/too-many-requests': 'Too many attempts. Wait a few minutes and try again.',
+    'auth/network-request-failed': 'No connection to Firebase. Check your network and try again.'
+  };
+  return map[e?.code] ?? e?.message ?? 'Sign in failed. Try again.';
+}
+</script>
+</body>
+</html>
