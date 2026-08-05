@@ -1,0 +1,59 @@
+rules_version = '2';
+
+// Hossain Memorial Scholarship Exam — Cloud Storage rules
+// Mirrors the Firestore role model: admins/{uid}.role decides who may upload.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function adminDoc() {
+      return firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data;
+    }
+
+    function isAdminUser() {
+      return request.auth != null
+        && firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid))
+        && adminDoc().active == true;
+    }
+
+    function rank() {
+      return isAdminUser()
+        ? {'viewer': 1, 'operator': 2, 'admin': 3, 'super_admin': 4}[adminDoc().role]
+        : 0;
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/(jpeg|png|webp)');
+    }
+
+    // Student photographs — visible on printed slips, so readable by anyone
+    // holding the URL; writable by data entry staff and above.
+    match /students/{studentId}/{file} {
+      allow read: if true;
+      allow write: if rank() >= 2 && isImage() && request.resource.size < 2 * 1024 * 1024;
+      allow delete: if rank() >= 3;
+    }
+
+    // Organisation branding used on certificates and the public site.
+    match /branding/{file} {
+      allow read: if true;
+      allow write: if rank() >= 3 && isImage() && request.resource.size < 5 * 1024 * 1024;
+    }
+
+    // Certificate background templates.
+    match /templates/{file} {
+      allow read: if true;
+      allow write: if rank() >= 3 && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // Generated report exports — staff only, never public.
+    match /exports/{file} {
+      allow read: if rank() >= 1;
+      allow write: if rank() >= 2 && request.resource.size < 25 * 1024 * 1024;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

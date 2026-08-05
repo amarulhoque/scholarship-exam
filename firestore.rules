@@ -1,0 +1,158 @@
+rules_version = '2';
+
+// Hossain Memorial Scholarship Exam — Firestore rules
+//
+// Roles live in admins/{uid}.role. Anyone without a document in `admins` is a
+// member of the public and can read exactly one collection: publicResults.
+//
+// Ranks: viewer 1 < operator 2 < admin 3 < super_admin 4
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ------------------------------------------------------------- helpers
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function adminDoc() {
+      return get(/databases/$(database)/documents/admins/$(request.auth.uid)).data;
+    }
+
+    function isAdminUser() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        && adminDoc().active == true;
+    }
+
+    function rank() {
+      return isAdminUser()
+        ? {'viewer': 1, 'operator': 2, 'admin': 3, 'super_admin': 4}[adminDoc().role]
+        : 0;
+    }
+
+    function atLeast(level) {
+      return rank() >= level;
+    }
+
+    // Blocks a write from silently changing who created a record.
+    function keepsOwner(field) {
+      return !(field in request.resource.data)
+        || resource == null
+        || request.resource.data[field] == resource.data[field];
+    }
+
+    // ------------------------------------------------------------- admins
+    // Readable by any signed-in admin (the shell needs the current user's role).
+    // Only a super admin may create, change roles, or deactivate accounts.
+
+    match /admins/{uid} {
+      allow read: if isAdminUser() || (signedIn() && request.auth.uid == uid);
+      allow create, delete: if atLeast(4);
+
+      // A super admin can edit anything. Anyone else may only touch their own
+      // lastLoginAt / name — never their own role or active flag.
+      allow update: if atLeast(4)
+        || (request.auth.uid == uid
+            && request.resource.data.role == resource.data.role
+            && request.resource.data.active == resource.data.active);
+    }
+
+    // ------------------------------------------------------------ students
+
+    match /students/{id} {
+      allow read: if atLeast(1);
+      allow create: if atLeast(2)
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 1
+        && request.resource.data.regNo is string
+        && request.resource.data.regNo.matches('^HM-[0-9]{4}-[0-9]{6}$')
+        && request.resource.data.examYear is int;
+      // The registration number is permanent once issued.
+      allow update: if atLeast(2)
+        && request.resource.data.regNo == resource.data.regNo
+        && keepsOwner('createdBy');
+      allow delete: if atLeast(3);
+    }
+
+    // ---------------------------------------------- registration counters
+    // Sequence documents are written only through the client transaction that
+    // issues a number, and the value may only ever move forward by one.
+
+    match /counters/{id} {
+      allow read: if atLeast(2);
+      allow write: if atLeast(2)
+        && request.resource.data.seq is int
+        && (resource == null
+            ? request.resource.data.seq == 1
+            : request.resource.data.seq == resource.data.seq + 1);
+    }
+
+    // ------------------------------------------------------------- schools
+
+    match /schools/{id} {
+      allow read: if true;                // the public site shows school counts
+      allow create, update: if atLeast(2);
+      allow delete: if atLeast(3);
+    }
+
+    // ------------------------------------------------------------ subjects
+
+    match /subjects/{id} {
+      allow read: if true;                // the result portal labels marks with these
+      allow write: if atLeast(3);
+    }
+
+    // ------------------------------------------------------------- results
+    // Full records, including drafts. Never public.
+
+    match /results/{id} {
+      allow read: if atLeast(1);
+      allow create, update: if atLeast(2)
+        && request.resource.data.total is number
+        && request.resource.data.examYear is int;
+      // Only an admin may flip a result to published.
+      allow update: if atLeast(3);
+      allow delete: if atLeast(3);
+    }
+
+    // ------------------------------------------------------- publicResults
+    // The sanitised mirror. World-readable by design: this is the portal.
+    // Written only by the publish action, which requires admin rank.
+
+    match /publicResults/{id} {
+      allow read: if true;
+      allow write: if atLeast(3);
+    }
+
+    // -------------------------------------------------------- certificates
+
+    match /certificates/{id} {
+      allow read: if atLeast(1);
+      allow write: if atLeast(3);
+    }
+
+    // ------------------------------------------------------------ settings
+
+    match /settings/{id} {
+      allow read: if true;                // org name, exam year, portal open flag
+      allow write: if atLeast(3);
+    }
+
+    // -------------------------------------------------------- activityLogs
+    // Append-only: entries can be created and read, never edited or removed.
+
+    match /activityLogs/{id} {
+      allow read: if atLeast(3);
+      allow create: if isAdminUser()
+        && request.resource.data.by == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // Anything not matched above is denied.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
