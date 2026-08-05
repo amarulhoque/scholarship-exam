@@ -19,7 +19,6 @@ export const firebaseConfig = {
   storageBucket: 'hossain-scholarship.firebasestorage.app',
   messagingSenderId: '725583902909',
   appId: '1:725583902909:web:ede1456d395609a5af1fd4'
-  measurementId: "G-MZRPWMBQX8"
 };
 
 /** Fixed application constants. Change ORG/EXAM defaults in Firestore settings/general. */
