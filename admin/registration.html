@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Register a student · Hossain Memorial Scholarship Exam</title>
+<meta name="robots" content="noindex">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Hind+Siliguri:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="../assets/css/app.css">
+<style>
+  .shell { display:grid; grid-template-columns:246px 1fr; min-height:100vh; }
+  #sidebar { display:flex; flex-direction:column; border-right:1px solid var(--line); background:var(--paper-2);
+             position:sticky; top:0; height:100vh; }
+  @media (max-width:860px){
+    .shell { grid-template-columns:1fr; }
+    #sidebar { position:fixed; z-index:60; width:246px; transform:translateX(-100%); transition:transform .22s ease; }
+    #sidebar.open { transform:none; }
+  }
+  fieldset { border:1px solid var(--line); border-radius:var(--radius); padding:1.1rem; }
+  legend { padding:0 .5rem; font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+           font-family:'JetBrains Mono',monospace; color:var(--text-mute); }
+</style>
+</head>
+<body class="opacity-0">
+<div class="shell">
+  <aside id="sidebar"></aside>
+
+  <div>
+    <header class="glass no-print" style="position:sticky;top:0;z-index:30">
+      <div class="px-5 h-16 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <button id="menu-toggle" class="btn btn-ghost btn-sm md:hidden" aria-label="Open menu">☰</button>
+          <h1 id="topbar-title" class="display" style="font-size:19px"></h1>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="import-btn" class="btn btn-ghost btn-sm">Import CSV</button>
+          <button id="theme-toggle" class="btn btn-ghost btn-sm" aria-label="Switch theme"><span data-theme-icon>☀</span></button>
+        </div>
+      </div>
+    </header>
+
+    <main class="p-5 max-w-5xl grid lg:grid-cols-[1fr,320px] gap-6 items-start">
+
+      <form id="reg-form" class="grid gap-4" novalidate>
+        <fieldset>
+          <legend>Student</legend>
+          <div class="grid sm:grid-cols-2 gap-x-4">
+            <label class="field"><span class="label">Full name *</span>
+              <input class="input" name="name" autocomplete="off" required>
+              <span class="error-text" data-error-for="name"></span></label>
+            <label class="field"><span class="label">Gender *</span>
+              <select class="select" name="gender" required>
+                <option value="">Choose</option><option>Male</option><option>Female</option><option>Other</option>
+              </select>
+              <span class="error-text" data-error-for="gender"></span></label>
+            <label class="field"><span class="label">Father's name *</span>
+              <input class="input" name="fatherName" required>
+              <span class="error-text" data-error-for="fatherName"></span></label>
+            <label class="field"><span class="label">Mother's name *</span>
+              <input class="input" name="motherName" required>
+              <span class="error-text" data-error-for="motherName"></span></label>
+            <label class="field"><span class="label">Date of birth *</span>
+              <input class="input" type="date" name="dob" required>
+              <span class="error-text" data-error-for="dob"></span></label>
+            <label class="field"><span class="label">Photo</span>
+              <input class="input" type="file" name="photo" accept="image/jpeg,image/png,image/webp"
+                     style="padding:.35rem">
+              <span class="hint">JPG, PNG or WebP, up to 2 MB.</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Contact</legend>
+          <div class="grid sm:grid-cols-2 gap-x-4">
+            <label class="field"><span class="label">Student mobile *</span>
+              <input class="input data" name="mobile" inputmode="numeric" placeholder="01XXXXXXXXX" required>
+              <span class="hint">Used to look up the result later.</span>
+              <span class="error-text" data-error-for="mobile"></span></label>
+            <label class="field"><span class="label">Guardian mobile</span>
+              <input class="input data" name="guardianMobile" inputmode="numeric" placeholder="01XXXXXXXXX">
+              <span class="error-text" data-error-for="guardianMobile"></span></label>
+            <label class="field sm:col-span-2"><span class="label">Address</span>
+              <textarea class="textarea" name="address" rows="2"></textarea></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>School and class</legend>
+          <div class="grid sm:grid-cols-2 gap-x-4">
+            <label class="field sm:col-span-2"><span class="label">School *</span>
+              <select class="select" name="schoolId" id="school-select" required>
+                <option value="">Loading schools…</option>
+              </select>
+              <span class="hint">Missing a school? <a href="schools.html" style="color:var(--seal)">Add it first</a>.</span>
+              <span class="error-text" data-error-for="schoolId"></span></label>
+            <label class="field"><span class="label">Class *</span>
+              <select class="select" name="class" required>
+                <option value="">Choose</option>
+                <option>Three</option><option>Four</option><option>Five</option>
+                <option>Six</option><option>Seven</option><option>Eight</option>
+                <option>Nine</option><option>Ten</option>
+              </select>
+              <span class="error-text" data-error-for="class"></span></label>
+            <label class="field"><span class="label">Section</span>
+              <input class="input" name="section" placeholder="A"></label>
+            <label class="field"><span class="label">Class roll *</span>
+              <input class="input data" name="roll" inputmode="numeric" required>
+              <span class="error-text" data-error-for="roll"></span></label>
+            <label class="field"><span class="label">Exam year *</span>
+              <input class="input data" name="examYear" type="number" readonly>
+              <span class="hint">Set in Settings.</span></label>
+            <label class="field"><span class="label">District *</span>
+              <input class="input" name="district" id="district" required>
+              <span class="error-text" data-error-for="district"></span></label>
+            <label class="field"><span class="label">Upazila</span>
+              <input class="input" name="upazila" id="upazila"></label>
+          </div>
+        </fieldset>
+
+        <div class="flex flex-wrap gap-3">
+          <button type="submit" id="save" class="btn btn-seal">Register student</button>
+          <button type="reset" class="btn btn-ghost">Clear form</button>
+        </div>
+      </form>
+
+      <!-- Live slip: what the student will be handed -->
+      <aside class="marksheet" style="padding:1.4rem 1.2rem;position:sticky;top:5.5rem">
+        <div class="eyebrow">Registration slip preview</div>
+        <div class="regno" id="pv-reg" style="font-size:18px;margin:.45rem 0 1rem">HM-••••-••••••</div>
+        <dl style="display:grid;grid-template-columns:auto 1fr;gap:.5rem 1rem;font-size:12.5px">
+          <dt class="eyebrow" style="align-self:center">Name</dt><dd id="pv-name">—</dd>
+          <dt class="eyebrow" style="align-self:center">School</dt><dd id="pv-school">—</dd>
+          <dt class="eyebrow" style="align-self:center">Class</dt><dd id="pv-class" class="data">—</dd>
+          <dt class="eyebrow" style="align-self:center">Mobile</dt><dd id="pv-mobile" class="data">—</dd>
+        </dl>
+        <p style="font-size:11px;color:var(--text-mute);margin-top:1rem;line-height:1.5">
+          The registration number is issued when you save, and cannot be changed afterwards.
+        </p>
+        <div class="flex justify-end mt-3"><div class="seal-ring">HOSSAIN<br>MEMORIAL<br>&#9733;</div></div>
+      </aside>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+import { mountAdmin } from '../assets/js/layout.js';
+import { registerStudent, importStudents, IMPORT_COLUMNS } from '../services/studentService.js';
+import { listSchools } from '../services/schoolService.js';
+import { $, $$, readForm, showErrors, ok, err, toast, withBusy, confirmDialog } from '../assets/js/ui.js';
+import { validate, required, isMobile, esc, parseCSV, toCSV, downloadFile } from '../utils/helpers.js';
+
+const { settings } = await mountAdmin({
+  page: 'registration.html', title: 'Register a student', minRole: 'operator'
+});
+
+const form = $('#reg-form');
+$('[name="examYear"]').value = settings.examYear;
+
+/* Schools drive both the dropdown and the district autofill. */
+const schools = await listSchools();
+$('#school-select').innerHTML = schools.length
+  ? `<option value="">Choose a school</option>` +
+    schools.map((s) => `<option value="${esc(s.id)}" data-district="${esc(s.district || '')}"
+        data-upazila="${esc(s.upazila || '')}" data-name="${esc(s.name)}">${esc(s.name)}</option>`).join('')
+  : `<option value="">No schools added yet</option>`;
+
+$('#school-select').addEventListener('change', (e) => {
+  const opt = e.target.selectedOptions[0];
+  if (opt?.dataset.district) $('#district').value = opt.dataset.district;
+  if (opt?.dataset.upazila) $('#upazila').value = opt.dataset.upazila;
+  updatePreview();
+});
+
+/* --------------------------------------------------------------- preview */
+
+const updatePreview = () => {
+  const d = readForm(form);
+  const school = $('#school-select').selectedOptions[0]?.dataset.name;
+  $('#pv-name').textContent = d.name || '—';
+  $('#pv-school').textContent = school || '—';
+  $('#pv-class').textContent = d.class ? `${d.class}${d.roll ? ' · Roll ' + d.roll : ''}` : '—';
+  $('#pv-mobile').textContent = d.mobile || '—';
+  $('#pv-reg').textContent = `HM-${settings.examYear}-••••••`;
+};
+form.addEventListener('input', updatePreview);
+form.addEventListener('reset', () => setTimeout(updatePreview, 0));
+updatePreview();
+
+/* ------------------------------------------------------------- validation */
+
+const RULES = {
+  name:        [{ test: required, msg: 'Enter the student’s full name.' }],
+  fatherName:  [{ test: required, msg: 'Enter the father’s name.' }],
+  motherName:  [{ test: required, msg: 'Enter the mother’s name.' }],
+  gender:      [{ test: required, msg: 'Choose a gender.' }],
+  dob:         [{ test: required, msg: 'Enter the date of birth.' }],
+  mobile:      [{ test: required, msg: 'Enter a mobile number.' },
+                { test: isMobile, msg: 'Use an 11-digit number starting 013–019.' }],
+  guardianMobile: [{ test: (v) => !v || isMobile(v), msg: 'Use an 11-digit number starting 013–019.' }],
+  schoolId:    [{ test: required, msg: 'Choose the school.' }],
+  class:       [{ test: required, msg: 'Choose the class.' }],
+  roll:        [{ test: required, msg: 'Enter the class roll.' }],
+  district:    [{ test: required, msg: 'Enter the district.' }]
+};
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const data = readForm(form);
+  const errors = validate(data, RULES);
+  if (Object.keys(errors).length) return showErrors(form, errors);
+  showErrors(form, {});
+
+  const photo = $('[name="photo"]').files[0] ?? null;
+  const schoolName = $('#school-select').selectedOptions[0]?.dataset.name ?? '';
+
+  await withBusy($('#save'), 'Registering…', async () => {
+    try {
+      delete data.photo;
+      const student = await registerStudent(
+        { ...data, examYear: Number(settings.examYear), schoolName }, photo);
+
+      $('#pv-reg').textContent = student.regNo;
+      ok(`Registered. Registration number ${student.regNo}.`);
+
+      /* Keep school, class and district — operators usually enter a whole class in a row. */
+      const keep = { schoolId: data.schoolId, class: data.class, district: data.district, upazila: data.upazila };
+      form.reset();
+      $('[name="examYear"]').value = settings.examYear;
+      Object.entries(keep).forEach(([k, v]) => { const el = $(`[name="${k}"]`); if (el) el.value = v; });
+      $('[name="name"]').focus();
+      updatePreview();
+    } catch (e) {
+      err(e.message);
+    }
+  });
+});
+
+/* ----------------------------------------------------------------- import */
+
+$('#import-btn').addEventListener('click', async () => {
+  const picker = Object.assign(document.createElement('input'), { type: 'file', accept: '.csv,text/csv' });
+  picker.addEventListener('change', async () => {
+    const file = picker.files[0];
+    if (!file) return;
+    const rows = parseCSV(await file.text());
+    if (!rows.length) return err('That file has no data rows.');
+
+    const missing = ['name', 'schoolId', 'class', 'roll', 'mobile'].filter((c) => !(c in rows[0]));
+    if (missing.length) {
+      return err(`The file is missing these columns: ${missing.join(', ')}. Download the template to see the expected format.`);
+    }
+
+    const go = await confirmDialog({
+      title: `Import ${rows.length} students?`,
+      body: `Each row gets its own registration number for ${settings.examYear}. Rows that duplicate an existing roll or mobile number are skipped and listed afterwards.`,
+      confirmLabel: 'Import'
+    });
+    if (!go) return;
+
+    const result = await importStudents(rows, Number(settings.examYear),
+      (done, total) => toast(`Imported ${done} of ${total}…`, 'info', 900));
+
+    ok(`Imported ${result.created.length} students.`);
+    if (result.skipped.length) {
+      err(`${result.skipped.length} rows were skipped. Downloading the list.`);
+      downloadFile('skipped-rows.csv', toCSV(result.skipped, [
+        { key: 'row', label: 'CSV row' }, { key: 'name', label: 'Name' }, { key: 'reason', label: 'Reason' }
+      ]));
+    }
+  });
+  picker.click();
+});
+
+/* Template download, so nobody has to guess the column names. */
+$('#import-btn').addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  downloadFile('student-import-template.csv', IMPORT_COLUMNS.join(',') + '\n');
+  ok('Template downloaded.');
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard · Hossain Memorial Scholarship Exam</title>
+<meta name="robots" content="noindex">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Hind+Siliguri:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="../assets/css/app.css">
+<style>
+  .shell { display:grid; grid-template-columns:246px 1fr; min-height:100vh; }
+  #sidebar { display:flex; flex-direction:column; border-right:1px solid var(--line); background:var(--paper-2);
+             position:sticky; top:0; height:100vh; }
+  @media (max-width:860px){
+    .shell { grid-template-columns:1fr; }
+    #sidebar { position:fixed; z-index:60; width:246px; transform:translateX(-100%); transition:transform .22s ease; }
+    #sidebar.open { transform:none; }
+  }
+</style>
+</head>
+<body class="opacity-0">
+<div class="shell">
+  <aside id="sidebar"></aside>
+
+  <div>
+    <header class="glass no-print" style="position:sticky;top:0;z-index:30">
+      <div class="px-5 h-16 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <button id="menu-toggle" class="btn btn-ghost btn-sm md:hidden" aria-label="Open menu">☰</button>
+          <h1 id="topbar-title" class="display" style="font-size:19px"></h1>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="eyebrow hidden sm:block" id="session-chip"></span>
+          <button id="theme-toggle" class="btn btn-ghost btn-sm" aria-label="Switch theme"><span data-theme-icon>☀</span></button>
+        </div>
+      </div>
+    </header>
+
+    <main class="p-5 max-w-6xl">
+      <!-- Counters -->
+      <section id="stats" class="grid grid-cols-2 lg:grid-cols-3 gap-3"></section>
+
+      <!-- Quick actions -->
+      <section class="flex flex-wrap gap-2 mt-5" id="quick-actions"></section>
+
+      <!-- Charts -->
+      <section class="grid lg:grid-cols-2 gap-4 mt-6">
+        <div class="card p-4 lg:col-span-2">
+          <div class="eyebrow">Registrations, last 14 days</div>
+          <div style="height:220px;margin-top:.6rem"><canvas id="c-trend"></canvas></div>
+        </div>
+        <div class="card p-4">
+          <div class="eyebrow">Students by school (top 8)</div>
+          <div style="height:250px;margin-top:.6rem"><canvas id="c-school"></canvas></div>
+        </div>
+        <div class="card p-4">
+          <div class="eyebrow">Students by district</div>
+          <div style="height:250px;margin-top:.6rem"><canvas id="c-district"></canvas></div>
+        </div>
+        <div class="card p-4">
+          <div class="eyebrow">Class-wise registrations</div>
+          <div style="height:230px;margin-top:.6rem"><canvas id="c-class"></canvas></div>
+        </div>
+        <div class="card p-4">
+          <div class="eyebrow">Gender distribution</div>
+          <div style="height:230px;margin-top:.6rem"><canvas id="c-gender"></canvas></div>
+        </div>
+      </section>
+
+      <!-- Activity -->
+      <section class="card mt-6">
+        <div class="p-4" style="border-bottom:1px solid var(--line)">
+          <div class="eyebrow">Recent activity</div>
+        </div>
+        <ul id="activity" class="divide-y" style="list-style:none"></ul>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+import { mountAdmin } from '../assets/js/layout.js';
+import { allStudents } from '../services/studentService.js';
+import { dashboardStats, recentActivity } from '../services/reportService.js';
+import { $, err, skeletonRows } from '../assets/js/ui.js';
+import { esc, fmtDate } from '../utils/helpers.js';
+
+const { profile, settings } = await mountAdmin({
+  page: 'dashboard.html', title: 'Dashboard', minRole: 'viewer'
+});
+
+$('#session-chip').textContent = `Session ${settings.examYear}`;
+
+/* Skeletons first so the layout does not jump when data lands. */
+$('#stats').innerHTML = Array.from({ length: 6 }, () =>
+  `<div class="card p-4"><div class="skeleton" style="height:10px;width:60%"></div>
+   <div class="skeleton" style="height:26px;width:40%;margin-top:.7rem"></div></div>`).join('');
+
+$('#quick-actions').innerHTML = `
+  <a href="registration.html" class="btn btn-seal btn-sm">Register a student</a>
+  <a href="results.html" class="btn btn-ghost btn-sm">Enter marks</a>
+  <a href="merit-list.html" class="btn btn-ghost btn-sm">Merit list</a>
+  <a href="students.html" class="btn btn-ghost btn-sm">Student records</a>`;
+
+let stats;
+try {
+  const students = await allStudents(settings.examYear);
+  stats = await dashboardStats(settings.examYear, students);
+} catch (e) {
+  err('Could not load dashboard data. ' + e.message);
+  throw e;
+}
+
+const cards = [
+  ['Total students', stats.totalStudents, 'students.html'],
+  ['Registered today', stats.registeredToday, 'students.html'],
+  ['Participating schools', stats.totalSchools, 'schools.html'],
+  ['Classes running', stats.totalClasses, 'results.html'],
+  ['Results published', stats.resultsPublished, 'results.html'],
+  ['Certificates issued', stats.certificatesGenerated, 'certificates.html']
+];
+
+$('#stats').innerHTML = cards.map(([label, value, href]) => `
+  <a href="${href}" class="card p-4 rise" style="text-decoration:none;color:inherit;display:block">
+    <div class="eyebrow">${esc(label)}</div>
+    <div class="display data" style="font-size:30px;margin-top:.3rem">${Number(value).toLocaleString()}</div>
+  </a>`).join('');
+
+/* ------------------------------------------------------------------ charts */
+
+const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const INK = css('--ink-3'), SEAL = css('--seal'), BRASS = css('--brass'),
+      PASS = css('--pass'), LINE = css('--line'), MUTE = css('--text-mute');
+
+Chart.defaults.font.family = 'Inter, sans-serif';
+Chart.defaults.font.size = 11;
+Chart.defaults.color = MUTE;
+Chart.defaults.plugins.legend.labels.boxWidth = 10;
+
+const topN = (obj, n) => Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, n);
+const noGrid = { grid: { display: false }, border: { color: LINE } };
+
+new Chart($('#c-trend'), {
+  type: 'line',
+  data: {
+    labels: Object.keys(stats.trend),
+    datasets: [{
+      data: Object.values(stats.trend), tension: .35, fill: true,
+      borderColor: SEAL, backgroundColor: SEAL + '1f', pointRadius: 2, borderWidth: 2
+    }]
+  },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { x: noGrid, y: { beginAtZero: true, grid: { color: LINE }, border: { display: false }, ticks: { precision: 0 } } } }
+});
+
+new Chart($('#c-school'), {
+  type: 'bar',
+  data: {
+    labels: topN(stats.bySchool, 8).map(([k]) => k.length > 22 ? k.slice(0, 21) + '…' : k),
+    datasets: [{ data: topN(stats.bySchool, 8).map(([, v]) => v), backgroundColor: INK, borderRadius: 3, barThickness: 14 }]
+  },
+  options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { x: { beginAtZero: true, grid: { color: LINE }, border: { display: false }, ticks: { precision: 0 } }, y: noGrid } }
+});
+
+new Chart($('#c-district'), {
+  type: 'bar',
+  data: {
+    labels: topN(stats.byDistrict, 10).map(([k]) => k),
+    datasets: [{ data: topN(stats.byDistrict, 10).map(([, v]) => v), backgroundColor: BRASS, borderRadius: 3, barThickness: 14 }]
+  },
+  options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { x: { beginAtZero: true, grid: { color: LINE }, border: { display: false }, ticks: { precision: 0 } }, y: noGrid } }
+});
+
+new Chart($('#c-class'), {
+  type: 'bar',
+  data: {
+    labels: Object.keys(stats.byClass).sort(),
+    datasets: [{ data: Object.keys(stats.byClass).sort().map((k) => stats.byClass[k]),
+                 backgroundColor: SEAL, borderRadius: 4, barThickness: 26 }]
+  },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { x: noGrid, y: { beginAtZero: true, grid: { color: LINE }, border: { display: false }, ticks: { precision: 0 } } } }
+});
+
+new Chart($('#c-gender'), {
+  type: 'doughnut',
+  data: {
+    labels: Object.keys(stats.byGender),
+    datasets: [{ data: Object.values(stats.byGender), backgroundColor: [INK, SEAL, BRASS, PASS], borderWidth: 0 }]
+  },
+  options: { responsive: true, maintainAspectRatio: false, cutout: '62%',
+    plugins: { legend: { position: 'bottom' } } }
+});
+
+/* ---------------------------------------------------------------- activity */
+
+const logs = await recentActivity(10);
+$('#activity').innerHTML = logs.length ? logs.map((l) => `
+  <li class="px-4 py-3 flex items-start justify-between gap-4" style="border-color:var(--line)">
+    <div>
+      <div style="font-size:13.5px">${esc(l.message)}</div>
+      <div class="eyebrow" style="margin-top:.2rem">${esc(l.byName || 'system')} · ${esc(l.action)}</div>
+    </div>
+    <div class="eyebrow" style="white-space:nowrap">${esc(fmtDate(l.at, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }))}</div>
+  </li>`).join('')
+  : `<li class="px-4 py-8" style="text-align:center;font-size:13px;color:var(--text-mute)">
+       Nothing has been recorded yet. Actions appear here as staff use the system.</li>`;
+</script>
+</body>
+</html>

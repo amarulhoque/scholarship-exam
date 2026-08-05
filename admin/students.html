@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Students · Hossain Memorial Scholarship Exam</title>
+<meta name="robots" content="noindex">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Hind+Siliguri:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="../assets/css/app.css">
+<style>
+  .shell { display:grid; grid-template-columns:246px 1fr; min-height:100vh; }
+  #sidebar { display:flex; flex-direction:column; border-right:1px solid var(--line); background:var(--paper-2);
+             position:sticky; top:0; height:100vh; }
+  @media (max-width:860px){
+    .shell { grid-template-columns:1fr; }
+    #sidebar { position:fixed; z-index:60; width:246px; transform:translateX(-100%); transition:transform .22s ease; }
+    #sidebar.open { transform:none; }
+  }
+  #drawer { position:fixed; inset:0 0 0 auto; width:min(420px,100%); z-index:70;
+            background:var(--paper-2); border-left:1px solid var(--line);
+            transform:translateX(100%); transition:transform .24s ease; overflow-y:auto; }
+  #drawer.open { transform:none; }
+</style>
+</head>
+<body class="opacity-0">
+<div class="shell">
+  <aside id="sidebar"></aside>
+
+  <div>
+    <header class="glass no-print" style="position:sticky;top:0;z-index:30">
+      <div class="px-5 h-16 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <button id="menu-toggle" class="btn btn-ghost btn-sm md:hidden" aria-label="Open menu">☰</button>
+          <h1 id="topbar-title" class="display" style="font-size:19px"></h1>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="export" class="btn btn-ghost btn-sm">Export CSV</button>
+          <a href="registration.html" class="btn btn-seal btn-sm">Register</a>
+          <button id="theme-toggle" class="btn btn-ghost btn-sm" aria-label="Switch theme"><span data-theme-icon>☀</span></button>
+        </div>
+      </div>
+    </header>
+
+    <main class="p-5 max-w-6xl">
+      <form id="filters" class="card p-4 grid sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end no-print">
+        <label class="field lg:col-span-2" style="margin:0">
+          <span class="label">Search</span>
+          <input class="input" name="search" placeholder="Name or HM-2026-000001" autocomplete="off">
+          <span class="hint">Names match from the beginning.</span>
+        </label>
+        <label class="field" style="margin:0"><span class="label">School</span>
+          <select class="select" name="schoolId"><option value="">All schools</option></select></label>
+        <label class="field" style="margin:0"><span class="label">Class</span>
+          <select class="select" name="class"><option value="">All classes</option></select></label>
+        <label class="field" style="margin:0"><span class="label">Gender</span>
+          <select class="select" name="gender">
+            <option value="">All</option><option>Male</option><option>Female</option><option>Other</option>
+          </select></label>
+      </form>
+
+      <div class="card mt-4 overflow-x-auto">
+        <table class="table">
+          <thead><tr>
+            <th>Registration</th><th>Name</th><th>School</th><th>Class</th><th>Roll</th><th>Mobile</th><th></th>
+          </tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+
+      <div class="flex items-center justify-between mt-4 no-print">
+        <p class="eyebrow" id="count">—</p>
+        <button id="more" class="btn btn-ghost btn-sm hidden">Load more</button>
+      </div>
+    </main>
+  </div>
+</div>
+
+<aside id="drawer" role="dialog" aria-modal="true" aria-label="Student profile"></aside>
+
+<script type="module">
+import { mountAdmin } from '../assets/js/layout.js';
+import { listStudents, getStudent, updateStudent, deleteStudent, allStudents } from '../services/studentService.js';
+import { listSchools } from '../services/schoolService.js';
+import { getResult } from '../services/resultService.js';
+import { $, $$, readForm, ok, err, confirmDialog, skeletonRows, emptyState, withBusy } from '../assets/js/ui.js';
+import { esc, fmtDate, debounce, toCSV, downloadFile } from '../utils/helpers.js';
+import { can } from '../services/authService.js';
+
+const { settings } = await mountAdmin({ page: 'students.html', title: 'Students', minRole: 'viewer' });
+
+const tbody = $('#rows');
+const filters = $('#filters');
+let cursor = null, loaded = 0;
+
+const schools = await listSchools();
+filters.schoolId.innerHTML = `<option value="">All schools</option>` +
+  schools.map((s) => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
+filters.class.innerHTML = `<option value="">All classes</option>` +
+  ['Three','Four','Five','Six','Seven','Eight','Nine','Ten']
+    .map((c) => `<option>${c}</option>`).join('');
+
+/** Reloads from the first page whenever a filter changes. */
+async function load(reset = true) {
+  if (reset) { cursor = null; loaded = 0; tbody.innerHTML = skeletonRows(6, 7); }
+  const f = readForm(filters);
+
+  try {
+    const { rows, cursor: next, done } = await listStudents({
+      examYear: Number(settings.examYear),
+      schoolId: f.schoolId || undefined,
+      class: f.class || undefined,
+      gender: f.gender || undefined,
+      search: f.search || undefined,
+      cursor: reset ? null : cursor
+    });
+
+    if (reset) tbody.innerHTML = '';
+    if (reset && !rows.length) {
+      tbody.innerHTML = `<tr><td colspan="7">${emptyState(
+        'No students match these filters',
+        'Try clearing the search, or register the first student for this session.',
+        '<a href="registration.html" class="btn btn-seal btn-sm">Register a student</a>')}</td></tr>`;
+      $('#more').classList.add('hidden');
+      $('#count').textContent = '0 students';
+      return;
+    }
+
+    tbody.insertAdjacentHTML('beforeend', rows.map(rowHtml).join(''));
+    cursor = next; loaded += rows.length;
+    $('#count').textContent = `${loaded} student${loaded === 1 ? '' : 's'} shown`;
+    $('#more').classList.toggle('hidden', done || !next);
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="7" style="padding:1.5rem;color:var(--fail);font-size:13px">
+      Could not load students. ${esc(e.message)}</td></tr>`;
+  }
+}
+
+const rowHtml = (s) => `
+  <tr data-id="${esc(s.id)}">
+    <td><span class="regno">${esc(s.regNo)}</span></td>
+    <td style="font-weight:550">${esc(s.name)}</td>
+    <td style="color:var(--text-mute)">${esc(s.schoolName || '—')}</td>
+    <td class="data">${esc(s.class || '—')}</td>
+    <td class="data">${esc(s.roll || '—')}</td>
+    <td class="data">${esc(s.mobile || '—')}</td>
+    <td style="text-align:right"><button class="btn btn-ghost btn-sm" data-view="${esc(s.id)}">View</button></td>
+  </tr>`;
+
+filters.addEventListener('input', debounce(() => load(true), 350));
+$('#more').addEventListener('click', () => load(false));
+await load(true);
+
+/* ---------------------------------------------------------------- profile */
+
+const drawer = $('#drawer');
+
+tbody.addEventListener('click', async (e) => {
+  const id = e.target.closest('[data-view]')?.dataset.view;
+  if (id) openProfile(id);
+});
+
+async function openProfile(id) {
+  drawer.classList.add('open');
+  drawer.innerHTML = `<div class="p-5 grid gap-3">
+    <div class="skeleton" style="height:12px;width:35%"></div>
+    <div class="skeleton" style="height:26px;width:60%"></div>
+    <div class="skeleton" style="height:180px"></div></div>`;
+
+  const s = await getStudent(id);
+  if (!s) { drawer.innerHTML = '<div class="p-5">This student record no longer exists.</div>'; return; }
+
+  let result = null;
+  try { result = await getResult(s.examYear, s.regNo); } catch { /* no result yet */ }
+
+  const field = (label, value) => `
+    <div><div class="eyebrow">${esc(label)}</div><div style="font-size:13.5px">${esc(value || '—')}</div></div>`;
+
+  drawer.innerHTML = `
+    <div class="p-5">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <div class="eyebrow">Student record</div>
+          <h2 class="display" style="font-size:22px;margin-top:.2rem">${esc(s.name)}</h2>
+          <div class="regno" style="font-size:14px;margin-top:.2rem">${esc(s.regNo)}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" data-close aria-label="Close">✕</button>
+      </div>
+
+      ${s.photoUrl ? `<img src="${esc(s.photoUrl)}" alt="Photograph of ${esc(s.name)}"
+        style="width:88px;height:110px;object-fit:cover;border:1px solid var(--line);border-radius:6px;margin-top:1rem">` : ''}
+
+      <div class="grid grid-cols-2 gap-4 mt-5 pt-5" style="border-top:1px solid var(--line)">
+        ${field("Father's name", s.fatherName)}
+        ${field("Mother's name", s.motherName)}
+        ${field('Mobile', s.mobile)}
+        ${field('Guardian mobile', s.guardianMobile)}
+        ${field('School', s.schoolName)}
+        ${field('Class / Section', [s.class, s.section].filter(Boolean).join(' · '))}
+        ${field('Roll', s.roll)}
+        ${field('Gender', s.gender)}
+        ${field('Date of birth', fmtDate(s.dob))}
+        ${field('District', s.district)}
+        ${field('Upazila', s.upazila)}
+        ${field('Registered', fmtDate(s.createdAt))}
+      </div>
+
+      ${s.address ? `<div class="mt-4">${field('Address', s.address)}</div>` : ''}
+
+      <div class="card mt-5 p-4">
+        <div class="eyebrow">Result</div>
+        ${result ? `
+          <div class="flex items-baseline gap-3 mt-2">
+            <span class="display data" style="font-size:24px">${esc(String(result.total))}</span>
+            <span style="font-size:13px;color:var(--text-mute)">of ${esc(String(result.fullMarks))} · ${esc(String(result.percentage))}%</span>
+            <span class="badge ${result.status === 'published' ? (result.passed ? 'badge-pass' : 'badge-fail') : 'badge-draft'}">
+              ${result.status === 'published' ? (result.passed ? 'Published · passed' : 'Published · not passed') : 'Draft'}
+            </span>
+          </div>
+          <div style="font-size:12.5px;color:var(--text-mute);margin-top:.4rem">
+            Grade ${esc(result.grade)} · GPA ${esc(result.gpa.toFixed(2))}
+            ${result.meritPosition ? ` · Merit position ${esc(String(result.meritPosition))}` : ''}
+          </div>`
+        : `<p style="font-size:13px;color:var(--text-mute);margin-top:.4rem">
+             No marks entered yet. <a href="results.html" style="color:var(--seal)">Go to mark entry</a>.</p>`}
+      </div>
+
+      <div class="flex flex-wrap gap-2 mt-5">
+        <button class="btn btn-ghost btn-sm" data-print>Print slip</button>
+        ${can.writeStudents() ? `<button class="btn btn-ghost btn-sm" data-edit>Edit details</button>` : ''}
+        ${can.manageSettings() ? `<button class="btn btn-seal btn-sm" data-delete>Delete record</button>` : ''}
+      </div>
+    </div>`;
+
+  drawer.querySelector('[data-close]').addEventListener('click', close);
+  drawer.querySelector('[data-print]')?.addEventListener('click', () => window.print());
+
+  drawer.querySelector('[data-edit]')?.addEventListener('click', async () => {
+    const name = prompt('Full name', s.name);
+    if (name === null) return;
+    const mobile = prompt('Mobile number', s.mobile);
+    if (mobile === null) return;
+    try {
+      await updateStudent(s.id, { name: name.trim(), mobile: mobile.trim(), regNo: s.regNo });
+      ok('Student updated.');
+      close(); load(true);
+    } catch (e) { err(e.message); }
+  });
+
+  drawer.querySelector('[data-delete]')?.addEventListener('click', async () => {
+    const go = await confirmDialog({
+      title: `Delete ${s.name}?`,
+      body: `Registration number ${s.regNo} will not be reissued. Any marks entered against it stay in the results collection until removed separately.`,
+      confirmLabel: 'Delete record', danger: true
+    });
+    if (!go) return;
+    try { await deleteStudent(s.id); ok('Record deleted.'); close(); load(true); }
+    catch (e) { err(e.message); }
+  });
+}
+
+const close = () => drawer.classList.remove('open');
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+
+/* ----------------------------------------------------------------- export */
+
+$('#export').addEventListener('click', async (e) => {
+  await withBusy(e.currentTarget, 'Preparing…', async () => {
+    const rows = await allStudents(Number(settings.examYear));
+    downloadFile(`students-${settings.examYear}.csv`, toCSV(rows, [
+      { key: 'regNo', label: 'Registration No' },
+      { key: 'name', label: 'Name' },
+      { key: 'fatherName', label: "Father's Name" },
+      { key: 'motherName', label: "Mother's Name" },
+      { key: 'gender', label: 'Gender' },
+      { key: 'dob', label: 'Date of Birth' },
+      { key: 'mobile', label: 'Mobile' },
+      { key: 'guardianMobile', label: 'Guardian Mobile' },
+      { key: 'schoolName', label: 'School' },
+      { key: 'class', label: 'Class' },
+      { key: 'section', label: 'Section' },
+      { key: 'roll', label: 'Roll' },
+      { key: 'district', label: 'District' },
+      { key: 'upazila', label: 'Upazila' },
+      { key: 'address', label: 'Address' },
+      { label: 'Registered On', value: (r) => fmtDate(r.createdAt) }
+    ]));
+    ok(`Exported ${rows.length} students.`);
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings · Hossain Memorial Scholarship Exam</title>
+<meta name="robots" content="noindex">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Hind+Siliguri:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="../assets/css/app.css">
+<style>
+  .shell { display:grid; grid-template-columns:246px 1fr; min-height:100vh; }
+  #sidebar { display:flex; flex-direction:column; border-right:1px solid var(--line); background:var(--paper-2);
+             position:sticky; top:0; height:100vh; }
+  @media (max-width:860px){
+    .shell { grid-template-columns:1fr; }
+    #sidebar { position:fixed; z-index:60; width:246px; transform:translateX(-100%); transition:transform .22s ease; }
+    #sidebar.open { transform:none; }
+  }
+</style>
+</head>
+<body class="opacity-0">
+<div class="shell">
+  <aside id="sidebar"></aside>
+
+  <div>
+    <header class="glass no-print" style="position:sticky;top:0;z-index:30">
+      <div class="px-5 h-16 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <button id="menu-toggle" class="btn btn-ghost btn-sm md:hidden" aria-label="Open menu">☰</button>
+          <h1 id="topbar-title" class="display" style="font-size:19px"></h1>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="theme-toggle" class="btn btn-ghost btn-sm" aria-label="Switch theme"><span data-theme-icon>☀</span></button>
+        </div>
+      </div>
+    </header>
+
+    <main class="p-5 max-w-3xl">
+      <div class="card p-8" style="text-align:center">
+        <div class="eyebrow">Next in the build</div>
+        <h2 class="display" style="font-size:24px;margin:.5rem 0 .6rem">Settings is not built yet</h2>
+        <p style="font-size:14px;color:var(--text-mute);line-height:1.7;max-width:52ch;margin:0 auto 1.5rem">Organisation name, exam name and year, logo, signature, certificate template, footer and theme.</p>
+        <p style="font-size:12.5px;color:var(--text-mute)">
+          The services this page needs already exist in
+          <code class="data">/services</code>, so it drops straight in.
+        </p>
+        <div class="flex gap-2 justify-center mt-6">
+          <a href="dashboard.html" class="btn btn-ghost btn-sm">Back to dashboard</a>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+import { mountAdmin } from '../assets/js/layout.js';
+await mountAdmin({ page: 'settings.html', title: 'Settings', minRole: 'admin' });
+</script>
+</body>
+</html>

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hossain Memorial Scholarship Exam</title>
+<meta name="description" content="Registration, results and merit lists for the Hossain Memorial Scholarship Exam.">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Hind+Siliguri:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+
+<header class="glass no-print" style="position:sticky;top:0;z-index:40">
+  <div class="mx-auto max-w-6xl px-5 h-16 flex items-center justify-between">
+    <a href="index.html" class="flex items-center gap-3" style="text-decoration:none;color:inherit">
+      <div class="data" style="width:34px;height:34px;border-radius:6px;background:var(--seal);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:700">HM</div>
+      <div>
+        <div class="display" style="font-size:15px;line-height:1.1">Hossain Memorial</div>
+        <div class="eyebrow">Scholarship exam</div>
+      </div>
+    </a>
+    <nav class="flex items-center gap-2">
+      <button id="theme-toggle" class="btn btn-ghost btn-sm" aria-label="Switch theme"><span data-theme-icon>☀</span></button>
+      <a href="result.html" class="btn btn-seal btn-sm">Check result</a>
+      <a href="login.html" class="btn btn-ghost btn-sm hidden sm:inline-flex">Admin</a>
+    </nav>
+  </div>
+</header>
+
+<!-- Hero: the exam's own artifact, an answer script with a registration serial -->
+<section class="relative overflow-hidden">
+  <div class="ruled absolute inset-0" aria-hidden="true"></div>
+  <div class="relative mx-auto max-w-6xl px-5 py-16 md:py-24 grid md:grid-cols-[1.15fr,.85fr] gap-12 items-center">
+    <div class="rise">
+      <div class="eyebrow" id="session-line">Session —</div>
+      <h1 class="display" style="font-size:clamp(34px,6vw,58px);line-height:1.05;margin:.5rem 0 1rem">
+        One exam hall.<br>One serial number.<br>One record that lasts.
+      </h1>
+      <p style="font-size:15.5px;line-height:1.7;color:var(--text-mute);max-width:52ch">
+        Every student who sits the Hossain Memorial Scholarship Exam is issued a permanent
+        registration number. Marks, merit position and certificate all follow that number —
+        so a result can be found years later with nothing but a slip of paper.
+      </p>
+      <div class="flex flex-wrap gap-3 mt-8">
+        <a href="result.html" class="btn btn-seal">Check your result</a>
+        <a href="#how" class="btn btn-ghost">How the exam runs</a>
+      </div>
+    </div>
+
+    <!-- Signature element: a specimen registration slip -->
+    <div class="marksheet rise" style="animation-delay:.1s;padding:1.6rem 1.4rem 1.4rem">
+      <div class="stamp">Specimen</div>
+      <div class="eyebrow">Registration slip</div>
+      <div class="regno" style="font-size:23px;margin:.5rem 0 1.2rem;">HM&#8202;-&#8202;2026&#8202;-&#8202;000001</div>
+      <dl style="display:grid;grid-template-columns:auto 1fr;gap:.55rem 1.2rem;font-size:13px">
+        <dt class="eyebrow" style="align-self:center">Name</dt><dd>Student name as registered</dd>
+        <dt class="eyebrow" style="align-self:center">School</dt><dd>Participating institution</dd>
+        <dt class="eyebrow" style="align-self:center">Class</dt><dd class="data">Six &middot; Roll 12</dd>
+        <dt class="eyebrow" style="align-self:center">Centre</dt><dd>Assigned exam centre</dd>
+      </dl>
+      <div class="flex items-end justify-between mt-6 pt-4" style="border-top:1px dashed var(--line)">
+        <div>
+          <div class="eyebrow">Keep this number</div>
+          <div style="font-size:12px;color:var(--text-mute);max-width:24ch">You will need it to view results.</div>
+        </div>
+        <div class="seal-ring">HOSSAIN<br>MEMORIAL<br>&#9733;</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Live counts, pulled from published data -->
+<section class="mx-auto max-w-6xl px-5 pb-4">
+  <div class="card grid grid-cols-2 md:grid-cols-4 divide-x" style="border-color:var(--line)">
+    <div class="p-5"><div class="eyebrow">Registered students</div><div class="display data" id="stat-students" style="font-size:28px">—</div></div>
+    <div class="p-5"><div class="eyebrow">Participating schools</div><div class="display data" id="stat-schools" style="font-size:28px">—</div></div>
+    <div class="p-5"><div class="eyebrow">Results published</div><div class="display data" id="stat-results" style="font-size:28px">—</div></div>
+    <div class="p-5"><div class="eyebrow">Districts covered</div><div class="display data" id="stat-districts" style="font-size:28px">—</div></div>
+  </div>
+</section>
+
+<section id="how" class="mx-auto max-w-6xl px-5 py-16">
+  <div class="eyebrow">How it works</div>
+  <h2 class="display" style="font-size:28px;margin:.4rem 0 2rem">From registration to certificate</h2>
+  <!-- Numbered because this genuinely is a fixed sequence a school must follow -->
+  <ol class="grid md:grid-cols-4 gap-6" style="list-style:none">
+    <li><div class="data" style="color:var(--seal);font-size:12px;font-weight:700">01</div>
+      <h3 class="display" style="font-size:17px;margin:.3rem 0 .4rem">Register</h3>
+      <p style="font-size:13.5px;color:var(--text-mute);line-height:1.6">The school submits student details. The system issues a registration number on the spot.</p></li>
+    <li><div class="data" style="color:var(--seal);font-size:12px;font-weight:700">02</div>
+      <h3 class="display" style="font-size:17px;margin:.3rem 0 .4rem">Sit the exam</h3>
+      <p style="font-size:13.5px;color:var(--text-mute);line-height:1.6">The exam is written on paper at the assigned centre on the announced date.</p></li>
+    <li><div class="data" style="color:var(--seal);font-size:12px;font-weight:700">03</div>
+      <h3 class="display" style="font-size:17px;margin:.3rem 0 .4rem">Marks entered</h3>
+      <p style="font-size:13.5px;color:var(--text-mute);line-height:1.6">Examiners enter subject marks. Totals, grades and merit positions are calculated automatically.</p></li>
+    <li><div class="data" style="color:var(--seal);font-size:12px;font-weight:700">04</div>
+      <h3 class="display" style="font-size:17px;margin:.3rem 0 .4rem">Result published</h3>
+      <p style="font-size:13.5px;color:var(--text-mute);line-height:1.6">Results open on this site. Scholarship winners can download a signed certificate.</p></li>
+  </ol>
+</section>
+
+<footer class="no-print" style="border-top:1px solid var(--line)">
+  <div class="mx-auto max-w-6xl px-5 py-8 flex flex-wrap gap-4 justify-between items-center">
+    <p style="font-size:12.5px;color:var(--text-mute)" id="footer-line">Hossain Memorial Scholarship Committee</p>
+    <div class="flex gap-4" style="font-size:12.5px">
+      <a href="result.html" style="color:var(--text-mute)">Results</a>
+      <a href="login.html" style="color:var(--text-mute)">Admin sign in</a>
+    </div>
+  </div>
+</footer>
+
+<script type="module">
+import { initTheme, toggleTheme, $ } from './assets/js/ui.js';
+import { isConfigured } from './services/firebase.js';
+
+initTheme();
+$('#theme-toggle').addEventListener('click', toggleTheme);
+
+/* Public counts are read-only and cheap; skip entirely until Firebase is wired up. */
+if (isConfigured()) {
+  const [{ getSettings }, { collection, getCountFromServer, query, where, getDocs }, { db, APP }] =
+    await Promise.all([
+      import('./services/reportService.js'),
+      import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js'),
+      import('./services/firebase.js')
+    ]);
+
+  const settings = await getSettings();
+  $('#session-line').textContent = `Session ${settings.examYear}`;
+  $('#footer-line').textContent = settings.footer || settings.orgName;
+  document.title = `${settings.examName}`;
+
+  const count = async (name, ...c) =>
+    (await getCountFromServer(query(collection(db, name), ...c))).data().count;
+
+  try {
+    const [students, schools, results] = await Promise.all([
+      count(APP.collections.students, where('examYear', '==', settings.examYear)),
+      count(APP.collections.schools),
+      count(APP.collections.publicResults, where('examYear', '==', settings.examYear))
+    ]);
+    $('#stat-students').textContent = students.toLocaleString();
+    $('#stat-schools').textContent = schools.toLocaleString();
+    $('#stat-results').textContent = results.toLocaleString();
+
+    const snap = await getDocs(query(collection(db, APP.collections.schools)));
+    $('#stat-districts').textContent =
+      new Set(snap.docs.map((d) => d.data().district).filter(Boolean)).size;
+  } catch {
+    /* Counts are decorative — a rules or network failure must not break the page. */
+    document.querySelectorAll('[id^="stat-"]').forEach((el) => { el.textContent = '—'; });
+  }
+}
+</script>
+</body>
+</html>
