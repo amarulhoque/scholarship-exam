@@ -13,12 +13,13 @@ import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.12.2/firebas
 import { getStorage } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
 
 export const firebaseConfig = {
-  apiKey: 'REPLACE_ME',
-  authDomain: 'REPLACE_ME.firebaseapp.com',
-  projectId: 'REPLACE_ME',
-  storageBucket: 'REPLACE_ME.appspot.com',
-  messagingSenderId: 'REPLACE_ME',
-  appId: 'REPLACE_ME'
+  apiKey: 'AIzaSyDecsSqX8HFNpxT3o_iniPc1Y39hEIXpyo',
+  authDomain: 'hossain-scholarship.firebaseapp.com',
+  projectId: 'hossain-scholarship',
+  storageBucket: 'hossain-scholarship.firebasestorage.app',
+  messagingSenderId: '725583902909',
+  appId: '1:725583902909:web:ede1456d395609a5af1fd4'
+  measurementId: "G-MZRPWMBQX8"
 };
 
 /** Fixed application constants. Change ORG/EXAM defaults in Firestore settings/general. */
