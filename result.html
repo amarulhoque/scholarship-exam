@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check result · Hossain Memorial Scholarship Exam</title>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Hind+Siliguri:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+
+<header class="glass no-print" style="position:sticky;top:0;z-index:40">
+  <div class="mx-auto max-w-3xl px-5 h-16 flex items-center justify-between">
+    <a href="index.html" class="flex items-center gap-3" style="text-decoration:none;color:inherit">
+      <div class="data" style="width:32px;height:32px;border-radius:6px;background:var(--seal);color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700">HM</div>
+      <div class="display" style="font-size:15px">Result portal</div>
+    </a>
+    <button id="theme-toggle" class="btn btn-ghost btn-sm" aria-label="Switch theme"><span data-theme-icon>☀</span></button>
+  </div>
+</header>
+
+<main class="mx-auto max-w-3xl px-5 py-10">
+
+  <section id="search-panel" class="no-print">
+    <div class="eyebrow" id="session-line">Session —</div>
+    <h1 class="display" style="font-size:clamp(28px,5vw,40px);line-height:1.1;margin:.4rem 0 .6rem">
+      Find your result
+    </h1>
+    <p style="font-size:14.5px;color:var(--text-mute);line-height:1.7;max-width:50ch">
+      Enter the registration number printed on your slip, and the mobile number given at
+      registration. Both must match.
+    </p>
+
+    <form id="lookup" class="card mt-7 p-5 grid sm:grid-cols-[1.2fr,1fr,auto] gap-4 items-end" novalidate>
+      <label class="field" style="margin:0">
+        <span class="label">Registration number</span>
+        <input class="input data" name="regNo" placeholder="HM-2026-000001" autocomplete="off"
+               style="text-transform:uppercase" required>
+        <span class="error-text" data-error-for="regNo"></span>
+      </label>
+      <label class="field" style="margin:0">
+        <span class="label">Mobile number</span>
+        <input class="input data" name="mobile" placeholder="01XXXXXXXXX" inputmode="numeric"
+               autocomplete="tel" required>
+        <span class="error-text" data-error-for="mobile"></span>
+      </label>
+      <button class="btn btn-seal" id="lookup-btn" style="margin-bottom:1rem">Show result</button>
+    </form>
+
+    <p id="portal-closed" class="hidden card p-4 mt-4" style="font-size:13.5px;border-left:3px solid var(--brass)">
+      Results for this session are not open yet. Check back on the announced date.
+    </p>
+  </section>
+
+  <div id="loading" class="hidden mt-8">
+    <div class="card p-6 grid gap-3">
+      <div class="skeleton" style="height:14px;width:40%"></div>
+      <div class="skeleton" style="height:28px;width:65%"></div>
+      <div class="skeleton" style="height:110px"></div>
+    </div>
+  </div>
+
+  <section id="result-panel" class="hidden mt-8"></section>
+
+  <div id="result-actions" class="hidden no-print flex flex-wrap gap-3 mt-5">
+    <button id="download" class="btn btn-primary">Download PDF</button>
+    <button id="print" class="btn btn-ghost">Print</button>
+    <button id="again" class="btn btn-ghost">Search another</button>
+  </div>
+</main>
+
+<script type="module">
+import { lookupPublicResult } from './services/resultService.js';
+import { listSubjects } from './services/resultService.js';
+import { getSettings } from './services/reportService.js';
+import { isConfigured } from './services/firebase.js';
+import { initTheme, toggleTheme, $, readForm, showErrors, err, ok, withBusy } from './assets/js/ui.js';
+import { esc, isMobile, parseRegNo, fmtDate } from './utils/helpers.js';
+
+initTheme();
+$('#theme-toggle').addEventListener('click', toggleTheme);
+
+let settings = { examYear: new Date().getFullYear(), examName: 'Hossain Memorial Scholarship Exam',
+                 orgName: 'Hossain Memorial Foundation', resultPortalOpen: true, footer: '' };
+
+if (isConfigured()) {
+  settings = await getSettings();
+  $('#session-line').textContent = `Session ${settings.examYear}`;
+  if (!settings.resultPortalOpen) {
+    $('#portal-closed').classList.remove('hidden');
+    $('#lookup-btn').disabled = true;
+  }
+} else {
+  err('Firebase is not configured yet. Add your project keys in services/firebase.js.');
+}
+
+/* Deep link support: result.html?reg=HM-2026-000001 prefills the form. */
+const preset = new URLSearchParams(location.search).get('reg');
+if (preset) $('[name="regNo"]').value = preset.toUpperCase();
+
+const form = $('#lookup');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const data = readForm(form);
+  const errors = {};
+  if (!parseRegNo(data.regNo)) errors.regNo = 'Use the full number from your slip, like HM-2026-000001.';
+  if (!isMobile(data.mobile)) errors.mobile = 'Enter the 11-digit mobile number given at registration.';
+  if (Object.keys(errors).length) return showErrors(form, errors);
+  showErrors(form, {});
+
+  $('#result-panel').classList.add('hidden');
+  $('#result-actions').classList.add('hidden');
+  $('#loading').classList.remove('hidden');
+
+  await withBusy($('#lookup-btn'), 'Searching…', async () => {
+    try {
+      const res = await lookupPublicResult(data.regNo, data.mobile);
+      $('#loading').classList.add('hidden');
+
+      if (res.mismatch) {
+        return showErrors(form, { mobile: 'This mobile number does not match the one on file.' });
+      }
+      if (!res.found) {
+        return showErrors(form, { regNo: 'No published result for this registration number yet.' });
+      }
+      render(res.result);
+    } catch (e) {
+      $('#loading').classList.add('hidden');
+      err('Could not reach the result server. Check your connection and try again.');
+    }
+  });
+});
+
+/** Draws the mark sheet — the same artifact a student would be handed on paper. */
+async function render(r) {
+  let subjects = [];
+  try { subjects = await listSubjects(r.examYear, r.class); } catch { /* fall back to raw keys */ }
+  const names = Object.fromEntries(subjects.map((s) => [s.id, s]));
+
+  const rows = Object.entries(r.marks || {}).map(([id, mark]) => {
+    const s = names[id] ?? { name: id.replace(/-/g, ' '), fullMarks: 100 };
+    return `<tr>
+        <td style="text-transform:capitalize">${esc(s.name)}</td>
+        <td class="data" style="text-align:right">${esc(String(s.fullMarks))}</td>
+        <td class="data" style="text-align:right;font-weight:600">${esc(String(mark))}</td>
+      </tr>`;
+  }).join('');
+
+  $('#result-panel').innerHTML = `
+    <article class="marksheet rise" id="sheet" style="padding:1.8rem 1.5rem 1.5rem">
+      <div class="stamp">${r.passed ? 'Published' : 'Published'}</div>
+
+      <div class="eyebrow">${esc(settings.orgName)}</div>
+      <h2 class="display" style="font-size:20px;margin:.25rem 0 .1rem">${esc(settings.examName)}</h2>
+      <div class="eyebrow">Statement of marks · Session ${esc(String(r.examYear))}</div>
+
+      <div class="grid sm:grid-cols-2 gap-x-8 gap-y-2 mt-6 pt-5" style="border-top:1px solid var(--line);font-size:13.5px">
+        <div><span class="eyebrow">Registration</span><div class="regno" style="font-size:16px">${esc(r.regNo)}</div></div>
+        <div><span class="eyebrow">Name</span><div style="font-weight:600">${esc(r.studentName)}</div></div>
+        <div><span class="eyebrow">School</span><div>${esc(r.schoolName || '—')}</div></div>
+        <div><span class="eyebrow">Class</span><div class="data">${esc(String(r.class))}</div></div>
+      </div>
+
+      <table class="table mt-6">
+        <thead><tr><th>Subject</th><th style="text-align:right">Full</th><th style="text-align:right">Obtained</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="3" style="color:var(--text-mute)">No subject marks recorded.</td></tr>'}</tbody>
+        <tfoot>
+          <tr><td style="font-weight:600">Total</td>
+              <td class="data" style="text-align:right">${esc(String(r.fullMarks))}</td>
+              <td class="data" style="text-align:right;font-weight:700">${esc(String(r.total))}</td></tr>
+        </tfoot>
+      </table>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-5" style="border-top:1px solid var(--line)">
+        <div><div class="eyebrow">Percentage</div><div class="display data" style="font-size:22px">${esc(String(r.percentage))}%</div></div>
+        <div><div class="eyebrow">Grade / GPA</div><div class="display data" style="font-size:22px">${esc(r.grade)} <span style="font-size:13px;color:var(--text-mute)">${esc(r.gpa.toFixed(2))}</span></div></div>
+        <div><div class="eyebrow">Merit position</div><div class="display data" style="font-size:22px">${r.meritPosition ? esc(String(r.meritPosition)) : '—'}</div></div>
+        <div><div class="eyebrow">Result</div><div style="margin-top:.35rem">
+          <span class="badge ${r.passed ? 'badge-pass' : 'badge-fail'}">${r.passed ? 'Passed' : 'Not passed'}</span></div></div>
+      </div>
+
+      <div class="flex items-end justify-between mt-7 pt-4" style="border-top:1px dashed var(--line)">
+        <p style="font-size:11px;color:var(--text-mute);max-width:40ch;line-height:1.5">
+          ${esc(settings.footer || '')} This statement is generated from the published result database
+          on ${esc(fmtDate(new Date()))}.
+        </p>
+        <div class="seal-ring">HOSSAIN<br>MEMORIAL<br>&#9733;</div>
+      </div>
+    </article>`;
+
+  $('#result-panel').classList.remove('hidden');
+  $('#result-actions').classList.remove('hidden');
+  $('#result-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+$('#print').addEventListener('click', () => window.print());
+$('#again').addEventListener('click', () => {
+  $('#result-panel').classList.add('hidden');
+  $('#result-actions').classList.add('hidden');
+  form.reset();
+  $('[name="regNo"]').focus();
+});
+
+$('#download').addEventListener('click', async (e) => {
+  await withBusy(e.currentTarget, 'Preparing…', async () => {
+    const sheet = $('#sheet');
+    /* Render on white regardless of theme — a dark PDF is unusable in print. */
+    const canvas = await html2canvas(sheet, { scale: 2, backgroundColor: '#ffffff' });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+    const width = 190;
+    const height = canvas.height * width / canvas.width;
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 10, 10, width, height);
+    pdf.save(`${$('.regno')?.textContent.trim() || 'result'}.pdf`);
+    ok('Result downloaded.');
+  });
+});
+</script>
+</body>
+</html>
